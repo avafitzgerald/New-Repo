@@ -1,0 +1,373 @@
+\documentclass[12pt]{article}
+\usepackage{url}
+\usepackage[pdftex, bookmarks, colorlinks, breaklinks, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref} 
+\usepackage[top=3cm, bottom=3cm, left = 3cm, right = 3cm]{geometry} 
+\usepackage{graphicx} 
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amsmath, amssymb}  
+\usepackage{pdfsync}  
+\usepackage{fancyhdr}
+\usepackage{authblk}
+\pagestyle{fancy}
+\setlength{\headheight}{16pt}
+
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny,
+    stepnumber=1,
+    numbersep=8pt
+}
+
+\title{Report Template}
+\author{A. EJ. Fitzgerald}
+\affil{Department of Physics and Astronomy}
+\affil{University of Waterloo}
+\date{April 6, 2026}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+
+We built a numerical stellar structure model by solving the coupled differential equations governing hydrostatic equilibrium, energy transport, mass conservation, and luminosity generation, we constructed stellar models across a range of central temperatures and compositions.
+
+The model used a physically motivated equation of state including gas, radiation, and degeneracy pressure, as well as nuclear energy generation through both the pp-chain and CNO cycle. Opacity is treated using a combination of analytical approximations and interpolated OPAL tables. Stellar surfaces are identified using an optical depth criterion, and a shooting method is used to converge on physically consistent solutions.
+
+
+\end{abstract}
+\tableofcontents
+\clearpage
+\clearpage
+
+% ------------
+% INTRODUCTION
+% ------------
+
+\section{Introduction}
+
+Stars are governed by a balance between gravitational collapse and internal pressure support. This balance is encoded in a set of coupled differential equations describing mass conservation, hydrostatic equilibrium, energy generation, and energy transport. Solving these equations show how stellar properties emerge from underlying physical assumptions.
+
+The model includes a composite equation of state with contributions from gas pressure, radiation pressure, and electron degeneracy pressure. Energy generation is modeled using both the proton-proton chain and the CNO cycle; therefore,  the model can capture behavior across a range of stellar masses and temperatures. Opacity is calculated using a combination of analytical expressions and interpolated OPAL tables to ensure realistic radiative transport.
+
+A key challenge in stellar modelling is determining the correct central density that produces a physically consistent surface. We address this using a shooting method, where trial solutions are generated and compared against the Stefan–Boltzmann relation at the stellar surface. The surface itself is defined using an optical depth condition, $\tau(R_\star) \approx 2/3$, which is located by interpolating the integrated optical depth profile.
+
+Using this framework, we generate stellar models across a range of central temperatures and analyze how their global properties change with $\gamma$. From these models, we construct Hertzsprung–Russell and mass–luminosity relations, allowing us to examine how the adiabatic index shapes the structure and distribution of stars along the main sequence.
+
+
+
+\clearpage
+
+
+% --------------
+% CODE ALGORITHM
+% --------------
+\section{Algorithm}
+
+The stellar structure problem is formulated as a system of coupled first-order differential equations describing the radial evolution of density $\rho(r)$, temperature $T(r)$, enclosed mass $M(r)$, luminosity $L(r)$, and optical depth $\tau(r)$. These equations are integrated outward from the stellar center to the stellar surface.
+
+\subsection{Governing Equations}
+
+The model solves the standard stellar structure relations for mass, luminosity, and optical depth:
+\begin{align}
+\frac{dM}{dr} &= 4\pi r^2 \rho, \\
+\frac{dL}{dr} &= 4\pi r^2 \rho \, \epsilon(\rho,T), \\
+\frac{d\tau}{dr} &= \kappa(\rho,T)\rho.
+\end{align}
+
+Hydrostatic equilibrium is written as
+\begin{equation}
+\frac{dP}{dr} = -\frac{GM\rho}{r^2}.
+\end{equation}
+
+Using the chain rule,
+\begin{equation}
+\frac{dP}{dr}
+=
+\frac{\partial P}{\partial \rho}\frac{d\rho}{dr}
++
+\frac{\partial P}{\partial T}\frac{dT}{dr},
+\end{equation}
+so the density gradient becomes
+\begin{equation}
+\frac{d\rho}{dr}
+=
+-\frac{
+\frac{GM\rho}{r^2}
++
+\frac{\partial P}{\partial T}\frac{dT}{dr}
+}{
+\frac{\partial P}{\partial \rho}
+}.
+\label{eq:drhodr}
+\end{equation}
+
+The temperature gradient is taken to be the smaller of the radiative and convective gradients:
+\begin{equation}
+\frac{dT}{dr}
+=
+-\min\left[
+\frac{3\kappa\rho L}{16\pi a c T^3 r^2},
+\left(1-\frac{1}{\gamma}\right)\frac{T}{P}\frac{GM\rho}{r^2}
+\right].
+\label{eq:dTdr}
+\end{equation}
+
+\subsection{Equation of State}
+
+The total pressure is modeled as the sum of degeneracy, gas, and radiation pressure:
+\begin{equation}
+P(\rho,T)
+=
+(3\pi^2)^{2/3}\frac{\hbar^2}{5m_e}\left(\frac{\rho}{m_p}\right)^{5/3}
++
+\frac{\rho k_B T}{\mu m_p}
++
+\frac{1}{3}aT^4.
+\label{eq:eos}
+\end{equation}
+
+For fully ionized gas, the mean molecular weight is
+\begin{equation}
+\mu = \left(2X+0.75Y+0.5Z\right)^{-1}.
+\end{equation}
+
+The required pressure derivatives are
+\begin{equation}
+\frac{\partial P}{\partial \rho}
+=
+(3\pi^2)^{2/3}\frac{\hbar^2}{3m_e m_p}\left(\frac{\rho}{m_p}\right)^{2/3}
++
+\frac{k_B T}{\mu m_p},
+\end{equation}
+and
+\begin{equation}
+\frac{\partial P}{\partial T}
+=
+\frac{\rho k_B}{\mu m_p}
++
+\frac{4}{3}aT^3.
+\end{equation}
+
+\subsection{Energy Generation}
+
+Energy generation is modeled as the sum of pp-chain and CNO-cycle contributions:
+\begin{equation}
+\epsilon_{\mathrm{pp}}
+=
+1.07\times10^{-7}\rho_5 X^2 T_6^4
+\quad \mathrm{W\,kg^{-1}},
+\end{equation}
+
+\begin{equation}
+\epsilon_{\mathrm{CNO}}
+=
+8.24\times10^{-26}\rho_5 X X_{\mathrm{CNO}} T_6^{19.9}
+\quad \mathrm{W\,kg^{-1}},
+\end{equation}
+where
+\begin{equation}
+\rho_5 \equiv \frac{\rho}{10^5},
+\qquad
+T_6 \equiv \frac{T}{10^6}.
+\end{equation}
+
+The total energy generation rate is therefore
+\begin{equation}
+\epsilon(\rho,T)=\epsilon_{\mathrm{pp}}+\epsilon_{\mathrm{CNO}}.
+\label{eq:epsilon_total}
+\end{equation}
+
+\subsection{Opacity}
+
+The opacity is modeled using electron scattering, free-free absorption, and H$^-$ opacity:
+\begin{equation}
+\kappa_{\mathrm{es}}=0.02(1+X)
+\quad \mathrm{m^2\,kg^{-1}},
+\end{equation}
+
+\begin{equation}
+\kappa_{\mathrm{ff}}
+=
+1.0\times10^{24}(Z+0.0001)\rho_3^{0.7}T^{-3.5}
+\quad \mathrm{m^2\,kg^{-1}},
+\end{equation}
+
+\begin{equation}
+\kappa_{H^-}
+=
+2.5\times10^{-32}\left(\frac{Z}{0.02}\right)\rho_3^{0.5}T^9
+\quad \mathrm{m^2\,kg^{-1}},
+\end{equation}
+where
+\begin{equation}
+\rho_3 \equiv \frac{\rho}{10^3}.
+\end{equation}
+
+The total opacity is then written as
+\begin{equation}
+\kappa(\rho,T)
+=
+\left[
+\frac{1}{\kappa_{H^-}}
++
+\frac{1}{\max(\kappa_{\mathrm{es}},\kappa_{\mathrm{ff}})}
+\right]^{-1}.
+\label{eq:kappa_total}
+\end{equation}
+
+\subsection{Boundary and Initial Conditions}
+
+At the centre of the star,
+\begin{equation}
+M(0)=0,
+\qquad
+L(0)=0.
+\end{equation}
+
+At the stellar surface, the photosphere is defined by the optical depth condition
+\begin{equation}
+\tau(\infty)-\tau(R_\ast)=\frac{2}{3},
+\label{eq:surface_tau}
+\end{equation}
+together with the Stefan--Boltzmann relation
+\begin{equation}
+L(R_\ast)=4\pi\sigma R_\ast^2 T_\ast^4.
+\label{eq:surface_sb}
+\end{equation}
+
+To avoid the singularity at $r=0$, the integration begins at a small radius $r_0$ with
+\begin{equation}
+\rho=\rho_c,
+\qquad
+T=T_c,
+\qquad
+M=\frac{4\pi}{3}r_0^3\rho_c,
+\qquad
+L=\frac{4\pi}{3}r_0^3\rho_c\,\epsilon(\rho_c,T_c),
+\qquad
+\tau=0.
+\label{eq:initial_conditions}
+\end{equation}
+
+\subsection{Optical Depth Proxy and Surface Finding}
+
+In the outer layers, the remaining optical depth is approximated by
+\begin{equation}
+\tau(\infty)-\tau \approx \delta\tau
+\equiv
+\frac{\kappa \rho^2}{\left|\frac{d\rho}{dr}\right|}.
+\label{eq:delta_tau}
+\end{equation}
+
+This provides a practical stopping condition for the numerical integration. The photospheric radius $R_\ast$ is then obtained by interpolating to the point where Equation~\eqref{eq:surface_tau} is satisfied.
+
+\subsection{Shooting Method}
+
+For a fixed central temperature $T_c$, the central density $\rho_c$ is determined using a shooting method. After integrating outward, the surface values are used to define
+\begin{equation}
+L_\ast = L(R_\ast),
+\qquad
+T_\ast = T(R_\ast).
+\end{equation}
+
+A residual function is then constructed:
+\begin{equation}
+f(\rho_c)
+=
+\frac{L_\ast - 4\pi\sigma R_\ast^2 T_\ast^4}
+{\sqrt{4\pi\sigma R_\ast^2 T_\ast^4 \, L_\ast}}.
+\label{eq:shooting_function}
+\end{equation}
+
+The correct value of $\rho_c$ is the one that drives this residual to zero. In practice, a bracketing procedure is first used to find two trial densities with opposite signs of $f(\rho_c)$, and the root is then refined by bisection until convergence is reached.
+
+\subsection{Numerical Procedure}
+
+The full algorithm proceeds as follows:
+\begin{enumerate}
+    \item Choose a central temperature $T_c$, adiabatic index $\gamma$, and trial central density $\rho_c$.
+    \item Construct the initial conditions at a small radius $r_0$ using Equation~\eqref{eq:initial_conditions}.
+    \item Integrate the coupled structure equations outward using an adaptive ODE solver.
+    \item Stop the integration once the optical depth proxy indicates that the photosphere has been reached.
+    \item Interpolate the solution to determine $R_\ast$, $T_\ast$, $L_\ast$, and $M_\ast$.
+    \item Evaluate the shooting residual from Equation~\eqref{eq:shooting_function}.
+    \item Adjust $\rho_c$ and repeat until the residual converges to zero.
+    \item Store the converged stellar model and repeat over a grid of $T_c$ values to generate a main-sequence sample.
+\end{enumerate}
+
+Once individual stellar models are obtained, their surface properties are used to construct global relations such as the Hertzsprung--Russell diagram, mass--radius relation, and mass--luminosity relation. Numerical outliers and unphysical solutions are removed during post-processing before smooth trends are fitted.
+
+
+\clearpage
+
+% -------------
+% MAIN SEQUENCE
+% -------------
+
+\section{Main Sequence}
+
+
+
+\clearpage
+
+% ---------------
+% STAR COMPARISON
+% ---------------
+
+\section{Star Comparison}
+
+To evaluate whether the generated stellar models reproduce the expected main sequence behaviour, the numerical results were compared to standard empirical scaling relations from \textit{Foundations of Astrophysics}. Specifically, the luminosity was compared to the mass--luminosity relation (Eq.~13.78),
+\[
+\frac{L}{L_\odot} =
+\begin{cases}
+0.35\left(\frac{M}{M_\odot}\right)^{2.62}, & M < 0.7\,M_\odot \\
+1.02\left(\frac{M}{M_\odot}\right)^{3.92}, & M > 0.7\,M_\odot
+\end{cases}
+\]
+and the radius was compared to the mass--radius relation (Eq.~13.77),
+\[
+\frac{R}{R_\odot} =
+\begin{cases}
+1.06\left(\frac{M}{M_\odot}\right)^{0.945}, & M < 1.66\,M_\odot \\
+1.33\left(\frac{M}{M_\odot}\right)^{0.555}, & M > 1.66\,M_\odot
+\end{cases}
+\]
+These relations provide a benchmark for main sequence stars and allow for direct comparison between the numerical stellar structure solutions and observed stellar trends. Agreement with these scalings indicates that the dominant physical processes in the model are being captured correctly [2]. 
+
+\clearpage
+% ----------
+% REFERENCES
+% ----------
+\section{References}
+
+\bibliographystyle{unsrt}
+
+\clearpage
+
+
+By varying $\gamma$, we examine how compressibility affects stellar structure, including radius, luminosity, and stability. From these models, we generate main sequence relations and analyze how the position and spread of stars depend on the adiabatic index.
+
+
+intro: 
+
+
+One key parameter in this system is the adiabatic index, $\gamma$, which determines how pressure responds to compression. Physically, $\gamma$ controls the stiffness of the equation of state and sets the adiabatic temperature gradient, which in turn governs convective stability and energy transport within the star. As $\gamma$ decreases, stellar material becomes more compressible, leading to more compact structures. As $\gamma$ increases, pressure responds more strongly to compression, producing more extended stars.
+
+In this project, we construct a numerical stellar structure solver in Python to explore how varying $\gamma$ impacts stellar properties and the resulting main sequence. The solver integrates the system of differential equations outward from the stellar center using initial conditions defined at a small radius. Because the equations are highly coupled and nonlinear, numerical methods are required to obtain physically meaningful solutions.
+
+
+
+\end{document}
+
